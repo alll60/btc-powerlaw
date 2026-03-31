@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC Power Law + IBIT / BTCC.B</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+  :root{--bg:#0a0a0f;--sf:#12121a;--sf2:#1a1a26;--bd:#2a2a3a;--tx:#e8e8f0;--dim:#8888aa;--or:#f7931a;--gr:#00d4aa;--rd:#ff4466;--pr:#8b5cf6;--bl:#3b82f6;--cy:#06b6d4}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--tx);font-family:'Outfit',sans-serif;min-height:100vh}
+  .grain{position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:1000}
+  .hdr{padding:2rem 2.5rem 1rem;display:flex;align-items:flex-end;gap:1.5rem;flex-wrap:wrap}
+  .hdr h1{font-size:2rem;font-weight:800;letter-spacing:-0.03em;background:linear-gradient(135deg,var(--or),#ffb347);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .hdr .sub{font-size:.85rem;color:var(--dim);font-family:'JetBrains Mono',monospace;padding-bottom:4px}
+  .stats{display:flex;gap:1rem;padding:.75rem 2.5rem 1rem;flex-wrap:wrap}
+  .sc{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:.7rem 1.1rem;min-width:120px;flex:1}
+  .sc .lb{font-size:.63rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;margin-bottom:.3rem}
+  .sc .vl{font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+  .sc .ch{font-size:.68rem;font-family:'JetBrains Mono',monospace;margin-top:.15rem}
+  .sc .ch.up{color:var(--gr)} .sc .ch.dn{color:var(--rd)}
+  .cc{padding:0 2.5rem;margin-top:.5rem}
+  .cw{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden}
+  .cw::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--or),transparent);opacity:.4}
+  canvas{width:100%!important;height:520px!important;cursor:crosshair}
+  .ctrl{display:flex;gap:.5rem;padding:.75rem 2.5rem;flex-wrap:wrap;align-items:center}
+  .cg{display:flex;gap:.25rem;background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:3px}
+  .cb{background:0;border:0;color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:.7rem;padding:.4rem .8rem;border-radius:6px;cursor:pointer;transition:all .2s;white-space:nowrap}
+  .cb:hover{color:var(--tx);background:var(--sf2)} .cb.on{background:var(--or);color:#000;font-weight:600}
+  .lg{display:flex;gap:1.2rem;padding:.5rem 2.5rem 1.5rem;flex-wrap:wrap}
+  .li{display:flex;align-items:center;gap:.4rem;font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--dim)}
+  .ld{width:10px;height:3px;border-radius:2px} .ld.da{background:repeating-linear-gradient(90deg,currentColor 0,currentColor 3px,transparent 3px,transparent 6px);height:2px}
+  .ip{padding:0 2.5rem 2rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  .ic{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:1.2rem;overflow-x:auto}
+  .ic h3{font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;margin-bottom:.8rem}
+  .ir{display:flex;justify-content:space-between;padding:.3rem 0;font-size:.73rem;border-bottom:1px solid rgba(255,255,255,.04);gap:.4rem}
+  .ir:last-child{border-bottom:0} .ir .k{color:var(--dim);white-space:nowrap} .ir .v{font-family:'JetBrains Mono',monospace;font-weight:500;white-space:nowrap}
+  .tt{position:absolute;background:rgba(18,18,26,.95);border:1px solid var(--bd);border-radius:8px;padding:.6rem .8rem;font-family:'JetBrains Mono',monospace;font-size:.7rem;pointer-events:none;z-index:100;backdrop-filter:blur(8px);display:none;min-width:240px}
+  .tt .td{color:var(--dim);margin-bottom:.3rem} .tt .tr{display:flex;justify-content:space-between;gap:1rem;padding:.12rem 0}
+  .tt .dv{border-top:1px solid rgba(255,255,255,.08);margin:.25rem 0} .tt .nt{color:var(--dim);font-size:.58rem;margin-top:.2rem}
+  .tt .th{color:var(--dim);font-size:.58rem;text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem;margin-bottom:.05rem}
+  .lookup{padding:0 2.5rem 2rem}
+  .lookup-box{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden}
+  .lookup-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cy),transparent);opacity:.4}
+  .lookup-box h3{font-size:.8rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;margin-bottom:1rem}
+  .lookup-form{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}
+  .lookup-form input[type="date"]{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-family:'JetBrains Mono',monospace;font-size:.85rem;padding:.5rem .8rem;outline:none;transition:border-color .2s}
+  .lookup-form input[type="date"]:focus{border-color:var(--or)}
+  .lookup-form input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
+  .lookup-btn{background:var(--or);border:none;color:#000;font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:600;padding:.55rem 1.2rem;border-radius:8px;cursor:pointer;transition:all .2s}
+  .lookup-btn:hover{opacity:.85;transform:translateY(-1px)}
+  .lookup-result{display:none}
+  .lookup-result.show{display:block}
+  .lr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem}
+  .lr-card{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:.8rem 1rem}
+  .lr-card .lr-label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;font-family:'JetBrains Mono',monospace;margin-bottom:.4rem}
+  .lr-card .lr-val{font-size:1.05rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+  .lr-card .lr-sub{font-size:.65rem;font-family:'JetBrains Mono',monospace;color:var(--dim);margin-top:.2rem}
+  .lr-note{font-size:.62rem;color:var(--dim);margin-top:.8rem;font-family:'JetBrains Mono',monospace}
+  .roi{padding:0 2.5rem 2rem}
+  .roi-box{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden}
+  .roi-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gr),transparent);opacity:.4}
+  .roi-box h3{font-size:.8rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;margin-bottom:1rem}
+  .roi-form{display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1.2rem}
+  .roi-field{display:flex;flex-direction:column;gap:.3rem}
+  .roi-field label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace}
+  .roi-field select,.roi-field input[type="number"],.roi-field input[type="text"]{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-family:'JetBrains Mono',monospace;font-size:.82rem;padding:.5rem .7rem;outline:none;transition:border-color .2s;width:140px}
+  .roi-field select{width:160px;cursor:pointer}
+  .roi-field input:focus,.roi-field select:focus{border-color:var(--or)}
+  .roi-calc-btn{background:var(--gr);border:none;color:#000;font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:600;padding:.55rem 1.2rem;border-radius:8px;cursor:pointer;transition:all .2s;align-self:flex-end;margin-bottom:1px}
+  .roi-calc-btn:hover{opacity:.85;transform:translateY(-1px)}
+  .roi-result{display:none}
+  .roi-result.show{display:block}
+  .roi-scenarios{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:.5rem}
+  .roi-sc{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:1rem;text-align:center}
+  .roi-sc .roi-sc-label{font-size:.6rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;margin-bottom:.5rem}
+  .roi-sc .roi-sc-etf{font-size:1.1rem;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:.15rem}
+  .roi-sc .roi-sc-pct{font-size:1.4rem;font-weight:800;font-family:'JetBrains Mono',monospace}
+  .roi-sc .roi-sc-mult{font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--dim);margin-top:.2rem}
+  .roi-sc .roi-sc-pnl{font-size:.75rem;font-family:'JetBrains Mono',monospace;margin-top:.15rem}
+  .roi-detail{font-size:.65rem;color:var(--dim);font-family:'JetBrains Mono',monospace;margin-top:.5rem;line-height:1.6}
+  @media(max-width:768px){.roi-scenarios{grid-template-columns:1fr}.hdr{padding:1.5rem 1rem .5rem}.hdr h1{font-size:1.4rem}.stats{padding:.5rem 1rem}.cc{padding:0 1rem}.ctrl{padding:.5rem 1rem}.lg{padding:.5rem 1rem 1rem}.ip{padding:0 1rem 1.5rem;grid-template-columns:1fr}canvas{height:360px!important}}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="hdr">
+  <h1>₿ Power Law Model</h1>
+  <div class="sub">2011–2050 · Santostasi · Hover for IBIT (USD) & BTCC.B (CAD)</div>
+</div>
+<div class="stats" id="stats"></div>
+<div class="ctrl">
+  <div class="cg" id="sG"><button class="cb on" data-s="log">Log Scale</button><button class="cb" data-s="linear">Linear</button></div>
+  <div class="cg" id="rG"><button class="cb on" data-r="all">2011–2050</button><button class="cb" data-r="5y">5Y</button><button class="cb" data-r="2y">2Y</button><button class="cb" data-r="1y">1Y</button></div>
+  <div class="cg"><button class="cb on" id="tB">BTC</button><button class="cb on" id="tBa">Bands</button><button class="cb on" id="tH">Halvings</button></div>
+</div>
+<div class="cc"><div class="cw"><canvas id="c"></canvas><div class="tt" id="tt"></div></div></div>
+<div class="lg">
+  <div class="li"><div class="ld" style="background:var(--or)"></div>BTC Price</div>
+  <div class="li"><div class="ld" style="background:var(--gr)"></div>Fair Value</div>
+  <div class="li"><div class="ld da" style="color:var(--rd)"></div>Ceiling</div>
+  <div class="li"><div class="ld da" style="color:var(--bl)"></div>Floor</div>
+  <div class="li"><div class="ld" style="background:rgba(255,255,255,.15);width:1px;height:14px"></div>Halvings</div>
+  <div class="li" style="color:var(--pr)">◆ IBIT (USD) on hover</div>
+  <div class="li" style="color:var(--cy)">◆ BTCC.B (CAD) on hover</div>
+</div>
+<div class="ip" id="ip"></div>
+
+<div class="lookup">
+  <div class="lookup-box">
+    <h3>📅 Date Lookup — Get Power Law + ETF Estimates</h3>
+    <div class="lookup-form">
+      <input type="date" id="lookupDate" value="2030-01-01" min="2009-01-04" max="2060-12-31">
+      <button class="lookup-btn" id="lookupBtn">Calculate</button>
+    </div>
+    <div class="lookup-result" id="lookupResult"></div>
+  </div>
+</div>
+
+<div class="roi">
+  <div class="roi-box">
+    <h3>📈 Options / Position ROI Calculator — Uses date above</h3>
+    <div class="roi-form">
+      <div class="roi-field">
+        <label>ETF</label>
+        <select id="roiETF">
+          <option value="ibit">IBIT (USD)</option>
+          <option value="btcc">BTCC.B (CAD)</option>
+        </select>
+      </div>
+      <div class="roi-field">
+        <label>Strike Price</label>
+        <input type="number" id="roiStrike" value="50" step="0.5" min="0">
+      </div>
+      <div class="roi-field">
+        <label>Option Premium Paid</label>
+        <input type="number" id="roiPremium" value="5.00" step="0.1" min="0">
+      </div>
+      <div class="roi-field">
+        <label>Contracts (×100)</label>
+        <input type="number" id="roiContracts" value="1" step="1" min="1">
+      </div>
+      <button class="roi-calc-btn" id="roiCalcBtn">Calculate ROI</button>
+    </div>
+    <div class="roi-result" id="roiResult"></div>
+  </div>
+</div>
+
+<script>
+const GEN=new Date('2009-01-03'),A=1.0117e-17,B=5.82,FM=0.42,UM=5.5;
+
+// IBIT: $38 USD, fee 0.25%/yr
+const IBIT_R=67700/38,IBIT_F=0.0025,IBIT_L=new Date('2024-01-11'),AD=new Date('2026-02-20');
+// BTCC.B: C$13, fee 1.45%/yr, USD/CAD 1.368
+const USDCAD=1.368,BTCC_R=(67700*USDCAD)/13,BTCC_F=0.0145,BTCC_L=new Date('2021-02-18');
+
+function eIBIT(btc,d){return(btc/IBIT_R)*Math.pow(1-IBIT_F,(d-AD)/31557600000);}
+function eBTCC(btc,d){return(btc*USDCAD/BTCC_R)*Math.pow(1-BTCC_F,(d-AD)/31557600000);}
+
+const HV=[new Date('2012-11-28'),new Date('2016-07-09'),new Date('2020-05-11'),new Date('2024-04-20'),new Date('2028-03-20'),new Date('2032-02-20'),new Date('2036-01-20'),new Date('2040-01-01'),new Date('2044-01-01'),new Date('2048-01-01')];
+
+function dg(d){return(d-GEN)/864e5;}
+function pl(d){const x=dg(d);return x<=0?0:A*Math.pow(x,B);}
+function fl(d){return pl(d)*FM;}
+function cl(d){return pl(d)*UM;}
+
+const BH=[['2010-07-01',.08],['2010-10-01',.1],['2011-01-01',.3],['2011-04-01',.8],['2011-06-01',31],['2011-09-01',5],['2011-12-01',3.2],['2012-01-01',5.3],['2012-04-01',5],['2012-07-01',7],['2012-10-01',11],['2012-12-01',13.5],['2013-01-01',13.5],['2013-03-01',34],['2013-04-01',135],['2013-07-01',90],['2013-10-01',140],['2013-12-01',1100],['2014-01-01',770],['2014-04-01',450],['2014-07-01',620],['2014-10-01',340],['2015-01-01',285],['2015-04-01',240],['2015-07-01',260],['2015-10-01',315],['2016-01-01',430],['2016-04-01',420],['2016-07-01',650],['2016-10-01',610],['2017-01-01',960],['2017-04-01',1080],['2017-07-01',2500],['2017-10-01',4400],['2017-12-01',13800],['2018-01-01',17000],['2018-02-01',10200],['2018-04-01',7000],['2018-07-01',6400],['2018-10-01',6300],['2018-12-01',3700],['2019-01-01',3700],['2019-04-01',4100],['2019-07-01',10800],['2019-10-01',8300],['2020-01-01',7200],['2020-03-01',8500],['2020-04-01',6400],['2020-07-01',9100],['2020-10-01',10800],['2020-12-01',29000],['2021-01-01',33000],['2021-02-01',45000],['2021-04-01',58000],['2021-05-01',57000],['2021-07-01',33000],['2021-09-01',47000],['2021-11-01',61000],['2021-12-01',46000],['2022-01-01',47700],['2022-03-01',43000],['2022-05-01',38500],['2022-06-01',20000],['2022-07-01',19300],['2022-09-01',19400],['2022-11-01',20500],['2022-12-01',16500],['2023-01-01',16600],['2023-03-01',23500],['2023-04-01',28400],['2023-06-01',27200],['2023-07-01',29300],['2023-09-01',26000],['2023-10-01',26900],['2023-12-01',42000],['2024-01-01',44000],['2024-02-01',43000],['2024-03-01',63000],['2024-04-01',71000],['2024-05-01',60000],['2024-06-01',67500],['2024-07-01',63000],['2024-08-01',64700],['2024-09-01',57300],['2024-10-01',63300],['2024-11-01',73000],['2024-12-01',96000],['2025-01-01',94000],['2025-02-01',97000],['2025-03-01',84000],['2025-04-01',82500],['2025-05-01',95000],['2025-06-01',107000],['2025-07-01',110000],['2025-08-01',118000],['2025-09-01',120000],['2025-10-01',126000],['2025-11-01',115000],['2025-12-01',95000],['2026-01-01',80000],['2026-02-01',78000],['2026-02-20',67700]];
+
+let S={s:'log',r:'all',btc:true,ba:true,hv:true};
+const cv=document.getElementById('c'),cx=cv.getContext('2d'),te=document.getElementById('tt');
+
+function gR(){
+  const r={all:new Date('2011-01-01'),'5y':new Date('2021-02-20'),'2y':new Date('2024-02-20'),'1y':new Date('2025-02-20')};
+  const e={all:new Date('2050-01-01'),'5y':new Date('2031-01-01'),'2y':new Date('2028-06-01'),'1y':new Date('2027-06-01')};
+  return{s:r[S.r],e:e[S.r]};
+}
+
+function f$(p){if(p>=1e9)return'$'+(p/1e9).toFixed(1)+'B';if(p>=1e6)return'$'+(p/1e6).toFixed(1)+'M';if(p>=1e3)return'$'+(p/1e3).toFixed(p>=1e5?0:1)+'K';if(p>=1)return'$'+p.toFixed(2);return'$'+p.toFixed(4);}
+function fI(p){if(p>=1e6)return'$'+(p/1e6).toFixed(1)+'M';if(p>=1e3)return'$'+(p/1e3).toFixed(1)+'K';return'$'+p.toFixed(2);}
+function fC(p){if(p>=1e6)return'C$'+(p/1e6).toFixed(1)+'M';if(p>=1e3)return'C$'+(p/1e3).toFixed(1)+'K';return'C$'+p.toFixed(2);}
+
+function draw(){
+  const dp=devicePixelRatio||1,rc=cv.getBoundingClientRect();
+  cv.width=rc.width*dp;cv.height=rc.height*dp;cx.scale(dp,dp);
+  const W=rc.width,H=rc.height,m={t:20,r:20,b:40,l:70},cw=W-m.l-m.r,ch=H-m.t-m.b;
+  const{s:st,e:en}=gR();
+  let mn=Infinity,mx=-Infinity;const sd=dg(st),ed=dg(en);
+  for(let d=sd;d<=ed;d+=30){const dt=new Date(GEN.getTime()+d*864e5);const fp=fl(dt),cp=cl(dt);if(fp>0)mn=Math.min(mn,fp);mx=Math.max(mx,cp);}
+  BH.forEach(([ds,p])=>{const d=new Date(ds);if(d>=st&&d<=en){mn=Math.min(mn,p);mx=Math.max(mx,p);}});
+  mn*=.5;mx*=2;const lg=S.s==='log';
+  const xS=d=>m.l+((d-st)/(en-st))*cw;
+  const yS=p=>{if(lg){const t=(Math.log10(p)-Math.log10(mn))/(Math.log10(mx)-Math.log10(mn));return m.t+(1-t)*ch;}return m.t+(1-(p-mn)/(mx-mn))*ch;};
+  cx.fillStyle='#12121a';cx.fillRect(0,0,W,H);
+
+  // grids
+  (lg?logT(mn,mx):linT(mn,mx)).forEach(p=>{const y=yS(p);if(y>m.t&&y<H-m.b){cx.strokeStyle='rgba(255,255,255,.04)';cx.lineWidth=1;cx.beginPath();cx.moveTo(m.l,y);cx.lineTo(W-m.r,y);cx.stroke();cx.fillStyle='rgba(255,255,255,.25)';cx.font='10px JetBrains Mono';cx.textAlign='right';cx.fillText(f$(p),m.l-8,y+3);}});
+  dT(st,en).forEach(d=>{const x=xS(d);if(x>m.l&&x<W-m.r){cx.strokeStyle='rgba(255,255,255,.04)';cx.beginPath();cx.moveTo(x,m.t);cx.lineTo(x,H-m.b);cx.stroke();cx.fillStyle='rgba(255,255,255,.25)';cx.font='10px JetBrains Mono';cx.textAlign='center';cx.fillText(d.getFullYear()+(S.r==='1y'||S.r==='2y'?'-'+String(d.getMonth()+1).padStart(2,'0'):''),x,H-m.b+18);}});
+
+  if(S.hv)HV.forEach(h=>{if(h>=st&&h<=en){const x=xS(h);cx.strokeStyle='rgba(255,255,255,.12)';cx.setLineDash([4,4]);cx.lineWidth=1;cx.beginPath();cx.moveTo(x,m.t);cx.lineTo(x,H-m.b);cx.stroke();cx.setLineDash([]);cx.fillStyle='rgba(255,255,255,.3)';cx.font='9px JetBrains Mono';cx.textAlign='center';cx.fillText('HALVING',x,m.t+12);cx.fillText(h.getFullYear(),x,m.t+23);}});
+
+  const td=new Date('2026-02-20');
+  if(td>=st&&td<=en){const x=xS(td);cx.strokeStyle='rgba(255,255,255,.08)';cx.setLineDash([2,3]);cx.lineWidth=1;cx.beginPath();cx.moveTo(x,m.t);cx.lineTo(x,H-m.b);cx.stroke();cx.setLineDash([]);cx.fillStyle='rgba(255,255,255,.2)';cx.font='9px JetBrains Mono';cx.textAlign='center';cx.fillText('TODAY',x,H-m.b-6);}
+
+  if(S.ba){const sp=Math.max(1,Math.floor((ed-sd)/500)),bp=[];
+  for(let d=Math.max(1,sd);d<=ed;d+=sp){const dt=new Date(GEN.getTime()+d*864e5),fp=fl(dt),cp=cl(dt),fv=pl(dt);if(fp>0&&cp>0&&fv>0)bp.push({d:dt,fp,cp,fv});}
+  if(bp.length>1){
+    cx.globalAlpha=.06;cx.beginPath();bp.forEach((p,i)=>{i?cx.lineTo(xS(p.d),yS(Math.min(p.cp,mx))):cx.moveTo(xS(p.d),yS(Math.min(p.cp,mx)));});for(let i=bp.length-1;i>=0;i--)cx.lineTo(xS(bp[i].d),yS(Math.max(bp[i].fp,mn)));cx.closePath();cx.fillStyle='#f7931a';cx.fill();cx.globalAlpha=1;
+    cx.strokeStyle='rgba(255,68,102,.6)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.beginPath();bp.forEach((p,i)=>{i?cx.lineTo(xS(p.d),yS(p.cp)):cx.moveTo(xS(p.d),yS(p.cp));});cx.stroke();cx.setLineDash([]);
+    cx.strokeStyle='rgba(59,130,246,.6)';cx.setLineDash([6,4]);cx.lineWidth=1.5;cx.beginPath();bp.forEach((p,i)=>{i?cx.lineTo(xS(p.d),yS(p.fp)):cx.moveTo(xS(p.d),yS(p.fp));});cx.stroke();cx.setLineDash([]);
+    cx.strokeStyle='rgba(0,212,170,.8)';cx.lineWidth=2;cx.setLineDash([]);cx.beginPath();bp.forEach((p,i)=>{i?cx.lineTo(xS(p.d),yS(p.fv)):cx.moveTo(xS(p.d),yS(p.fv));});cx.stroke();}}
+
+  if(S.btc){const pt=BH.filter(([d])=>{const x=new Date(d);return x>=st&&x<=en;});
+  if(pt.length>1){cx.strokeStyle='rgba(247,147,26,.2)';cx.lineWidth=8;cx.lineJoin='round';cx.beginPath();pt.forEach(([d,p],i)=>{i?cx.lineTo(xS(new Date(d)),yS(p)):cx.moveTo(xS(new Date(d)),yS(p));});cx.stroke();
+  cx.strokeStyle='#f7931a';cx.lineWidth=2.5;cx.beginPath();pt.forEach(([d,p],i)=>{i?cx.lineTo(xS(new Date(d)),yS(p)):cx.moveTo(xS(new Date(d)),yS(p));});cx.stroke();
+  const l=pt[pt.length-1],lx=xS(new Date(l[0])),ly=yS(l[1]);cx.beginPath();cx.arc(lx,ly,5,0,Math.PI*2);cx.fillStyle='#f7931a';cx.fill();cx.beginPath();cx.arc(lx,ly,8,0,Math.PI*2);cx.strokeStyle='rgba(247,147,26,.4)';cx.lineWidth=2;cx.stroke();}}
+  cx.fillStyle='rgba(255,255,255,.3)';cx.font='10px JetBrains Mono';cx.textAlign='center';cx.fillText('BTC (USD)',m.l,m.t-6);
+}
+
+function logT(n,x){const t=[];for(let e=Math.floor(Math.log10(n));e<=Math.ceil(Math.log10(x));e++)[1,2,5].forEach(m=>{const v=m*Math.pow(10,e);if(v>=n*.9&&v<=x*1.1)t.push(v);});return t;}
+function linT(n,x){const s=Math.pow(10,Math.floor(Math.log10(x-n)))/2,t=[];for(let v=Math.ceil(n/s)*s;v<=x;v+=s)t.push(v);return t;}
+function dT(s,e){const t=[],y=(e-s)/(365.25*864e5);if(y>4)for(let i=s.getFullYear();i<=e.getFullYear();i++)t.push(new Date(i,0,1));else if(y>1.5)for(let i=s.getFullYear();i<=e.getFullYear();i++)[0,3,6,9].forEach(m=>t.push(new Date(i,m,1)));else for(let i=s.getFullYear();i<=e.getFullYear();i++)for(let m=0;m<12;m++)t.push(new Date(i,m,1));return t.filter(d=>d>=s&&d<=e);}
+
+// Stats
+function rS(){
+  const fv=pl(AD),flr=fl(AD),cei=cl(AD),dev=((67700-fv)/fv*100);
+  document.getElementById('stats').innerHTML=`
+  <div class="sc"><div class="lb">BTC Price</div><div class="vl" style="color:var(--or)">${f$(67700)}</div><div class="ch dn">ATH $126K · -46%</div></div>
+  <div class="sc"><div class="lb">IBIT (USD)</div><div class="vl" style="color:var(--pr)">$38.00</div><div class="ch dn">Fee: 0.25%/yr</div></div>
+  <div class="sc"><div class="lb">BTCC.B (CAD)</div><div class="vl" style="color:var(--cy)">C$13.00</div><div class="ch dn">Fee: 1.45%/yr</div></div>
+  <div class="sc"><div class="lb">Fair Value</div><div class="vl" style="color:var(--gr)">${f$(fv)}</div><div class="ch ${dev>=0?'up':'dn'}">${dev>=0?'+':''}${dev.toFixed(1)}%</div></div>
+  <div class="sc"><div class="lb">Floor</div><div class="vl" style="color:var(--bl)">${f$(flr)}</div><div class="ch">${((67700-flr)/flr*100).toFixed(0)}% above</div></div>
+  <div class="sc"><div class="lb">Ceiling</div><div class="vl" style="color:var(--rd)">${f$(cei)}</div><div class="ch">${((cei-67700)/67700*100).toFixed(0)}% upside</div></div>`;
+}
+
+function rI(){
+  const ds=[['2026-06-01','Jun 2026'],['2027-01-01','Jan 2027'],['2028-01-01','Jan 2028'],['2030-01-01','Jan 2030'],['2033-01-01','Jan 2033'],['2035-01-01','Jan 2035'],['2040-01-01','Jan 2040'],['2045-01-01','Jan 2045'],['2050-01-01','Jan 2050']];
+  let rows='';
+  ds.forEach(([s,l])=>{const d=new Date(s),fv=pl(d),flr=fl(d),cei=cl(d);
+    rows+=`<div class="ir"><span class="k">${l}</span><span class="v" style="color:var(--bl)">${f$(flr)}</span><span class="v" style="color:var(--gr)">${f$(fv)}</span><span class="v" style="color:var(--rd)">${f$(cei)}</span><span class="v" style="color:var(--pr)">${fI(eIBIT(fv,d))}</span><span class="v" style="color:var(--cy)">${fC(eBTCC(fv,d))}</span></div>`;
+  });
+  document.getElementById('ip').innerHTML=`
+  <div class="ic"><h3>Projections: Floor / Fair / Ceiling / IBIT / BTCC.B (at Fair Value)</h3>${rows}
+  <div style="font-size:.6rem;color:var(--dim);margin-top:.6rem">IBIT: ratio ${IBIT_R.toFixed(0)}:1 · 0.25%/yr fee | BTCC.B: ratio ${BTCC_R.toFixed(0)}:1 · 1.45%/yr fee · USD/CAD ${USDCAD} assumed flat</div></div>
+  <div class="ic"><h3>Model Parameters</h3>
+  <div class="ir"><span class="k">Formula</span><span class="v">P = A × days^B</span></div>
+  <div class="ir"><span class="k">A</span><span class="v">1.0117e-17</span></div>
+  <div class="ir"><span class="k">B</span><span class="v">5.82</span></div>
+  <div class="ir"><span class="k">Floor ×</span><span class="v">0.42</span></div>
+  <div class="ir"><span class="k">Ceiling ×</span><span class="v">5.5</span></div>
+  <div class="ir"><span class="k">BTC/IBIT ratio</span><span class="v">${IBIT_R.toFixed(0)}:1</span></div>
+  <div class="ir"><span class="k">BTC(CAD)/BTCC.B ratio</span><span class="v">${BTCC_R.toFixed(0)}:1</span></div>
+  <div class="ir"><span class="k">IBIT fee</span><span class="v">0.25%/yr</span></div>
+  <div class="ir"><span class="k">BTCC.B MER</span><span class="v">1.45%/yr</span></div>
+  <div class="ir"><span class="k">USD/CAD</span><span class="v">${USDCAD}</span></div>
+  <div class="ir"><span class="k">IBIT launch</span><span class="v">Jan 11, 2024</span></div>
+  <div class="ir"><span class="k">BTCC.B launch</span><span class="v">Feb 18, 2021</span></div>
+  <div class="ir"><span class="k">Next halving</span><span class="v">~Mar 2028</span></div>
+  <div style="font-size:.6rem;color:var(--dim);margin-top:.6rem">IBIT = BTC/${IBIT_R.toFixed(0)} × (1−0.0025)^yrs<br>BTCC.B = BTC×${USDCAD}/${BTCC_R.toFixed(0)} × (1−0.0145)^yrs<br>Estimates only — actual prices track NAV ± premium/discount</div></div>`;
+}
+
+// Controls
+document.querySelectorAll('#sG .cb').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#sG .cb').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.s=b.dataset.s;draw();}));
+document.querySelectorAll('#rG .cb').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('#rG .cb').forEach(x=>x.classList.remove('on'));b.classList.add('on');S.r=b.dataset.r;draw();}));
+document.getElementById('tB').addEventListener('click',function(){S.btc=!S.btc;this.classList.toggle('on');draw();});
+document.getElementById('tBa').addEventListener('click',function(){S.ba=!S.ba;this.classList.toggle('on');draw();});
+document.getElementById('tH').addEventListener('click',function(){S.hv=!S.hv;this.classList.toggle('on');draw();});
+
+// Tooltip
+cv.addEventListener('mousemove',e=>{
+  const rc=cv.getBoundingClientRect(),mx=e.clientX-rc.left,my=e.clientY-rc.top;
+  const ml=70,mr=20,cw=rc.width-ml-mr;
+  if(mx<ml||mx>rc.width-mr){te.style.display='none';return;}
+  const{s:st,e:en}=gR();
+  const dt=new Date(st.getTime()+((mx-ml)/cw)*(en-st));
+  const fv=pl(dt),flr=fl(dt),cei=cl(dt);
+  const sI=dt>=IBIT_L,sB=dt>=BTCC_L;
+
+  let nb=null,md=Infinity;
+  BH.forEach(([ds,p])=>{const d=Math.abs(new Date(ds)-dt);if(d<md&&d<45*864e5){md=d;nb=p;}});
+
+  const ds=dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  const yrs=((dt-AD)/31557600000);
+  let h=`<div class="td">${ds}</div>`;
+
+  if(nb){
+    h+=`<div class="tr"><span style="color:var(--or)">BTC Actual</span><span>${f$(nb)}</span></div>`;
+    if(sI)h+=`<div class="tr"><span style="color:var(--pr)">IBIT Est.</span><span>${fI(eIBIT(nb,dt))}</span></div>`;
+    if(sB)h+=`<div class="tr"><span style="color:var(--cy)">BTCC.B Est.</span><span>${fC(eBTCC(nb,dt))}</span></div>`;
+  }
+
+  h+=`<div class="dv"></div>`;
+  h+=`<div class="th">Power Law Model</div>`;
+  h+=`<div class="tr"><span style="color:var(--gr)">Fair Value</span><span>${f$(fv)}</span></div>`;
+  if(sI)h+=`<div class="tr"><span style="color:var(--pr)">IBIT @Fair</span><span>${fI(eIBIT(fv,dt))}</span></div>`;
+  if(sB)h+=`<div class="tr"><span style="color:var(--cy)">BTCC.B @Fair</span><span>${fC(eBTCC(fv,dt))}</span></div>`;
+
+  h+=`<div class="tr"><span style="color:var(--bl)">Floor</span><span>${f$(flr)}</span></div>`;
+  if(sI)h+=`<div class="tr"><span style="color:var(--pr)">IBIT @Floor</span><span>${fI(eIBIT(flr,dt))}</span></div>`;
+  if(sB)h+=`<div class="tr"><span style="color:var(--cy)">BTCC.B @Floor</span><span>${fC(eBTCC(flr,dt))}</span></div>`;
+
+  h+=`<div class="tr"><span style="color:var(--rd)">Ceiling</span><span>${f$(cei)}</span></div>`;
+  if(sI)h+=`<div class="tr"><span style="color:var(--pr)">IBIT @Ceil</span><span>${fI(eIBIT(cei,dt))}</span></div>`;
+  if(sB)h+=`<div class="tr"><span style="color:var(--cy)">BTCC.B @Ceil</span><span>${fC(eBTCC(cei,dt))}</span></div>`;
+
+  if(sI||sB){
+    const iDrag=(1-Math.pow(1-IBIT_F,yrs))*100;
+    const bDrag=(1-Math.pow(1-BTCC_F,yrs))*100;
+    h+=`<div class="nt">${yrs.toFixed(1)}yr from anchor`;
+    if(sI)h+=` · IBIT drag: ${iDrag.toFixed(1)}%`;
+    if(sB)h+=` · BTCC.B drag: ${bDrag.toFixed(1)}%`;
+    h+=`</div>`;
+  }
+
+  te.innerHTML=h;te.style.display='block';
+  let tx=mx+15,ty=my-10;
+  if(tx+250>rc.width)tx=mx-260;
+  if(ty<0)ty=10;
+  te.style.left=tx+'px';te.style.top=ty+'px';
+});
+cv.addEventListener('mouseleave',()=>{te.style.display='none';});
+
+window.addEventListener('resize',draw);
+rS();rI();draw();
+
+// Date Lookup
+function doLookup(){
+  const inp=document.getElementById('lookupDate').value;
+  if(!inp)return;
+  const d=new Date(inp+'T12:00:00');
+  const res=document.getElementById('lookupResult');
+  
+  const fv=pl(d),flr=fl(d),cei=cl(d);
+  const days=Math.floor(dg(d));
+  const yrs=((d-AD)/31557600000);
+  const sI=d>=IBIT_L,sB=d>=BTCC_L;
+  
+  const ibitFV=eIBIT(fv,d),ibitFL=eIBIT(flr,d),ibitCL=eIBIT(cei,d);
+  const btccFV=eBTCC(fv,d),btccFL=eBTCC(flr,d),btccCL=eBTCC(cei,d);
+  const iDrag=(1-Math.pow(1-IBIT_F,yrs))*100;
+  const bDrag=(1-Math.pow(1-BTCC_F,yrs))*100;
+  
+  const dateStr=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  
+  let html=`<div style="font-size:.85rem;margin-bottom:.8rem;color:var(--tx)"><strong>${dateStr}</strong> <span style="color:var(--dim)">· Day ${days.toLocaleString()} since genesis · ${yrs>=0?'+':''}${yrs.toFixed(1)} yrs from today</span></div>`;
+  html+=`<div class="lr-grid">`;
+  
+  // BTC cards
+  html+=`<div class="lr-card"><div class="lr-label">BTC Fair Value</div><div class="lr-val" style="color:var(--gr)">${f$(fv)}</div></div>`;
+  html+=`<div class="lr-card"><div class="lr-label">BTC Floor (Support)</div><div class="lr-val" style="color:var(--bl)">${f$(flr)}</div></div>`;
+  html+=`<div class="lr-card"><div class="lr-label">BTC Ceiling (Resistance)</div><div class="lr-val" style="color:var(--rd)">${f$(cei)}</div></div>`;
+  
+  // IBIT cards
+  if(sI){
+    html+=`<div class="lr-card"><div class="lr-label">IBIT @ Fair Value</div><div class="lr-val" style="color:var(--pr)">${fI(ibitFV)}</div><div class="lr-sub">Floor ${fI(ibitFL)} · Ceil ${fI(ibitCL)}</div></div>`;
+  }
+  
+  // BTCC.B cards
+  if(sB){
+    html+=`<div class="lr-card"><div class="lr-label">BTCC.B @ Fair Value</div><div class="lr-val" style="color:var(--cy)">${fC(btccFV)}</div><div class="lr-sub">Floor ${fC(btccFL)} · Ceil ${fC(btccCL)}</div></div>`;
+  }
+  
+  // Fee comparison card
+  if(sI||sB){
+    html+=`<div class="lr-card"><div class="lr-label">Cumulative Fee Drag</div><div class="lr-val">`;
+    if(sI)html+=`<span style="color:var(--pr)">IBIT ${iDrag.toFixed(2)}%</span> `;
+    if(sB)html+=`<span style="color:var(--cy)">BTCC.B ${bDrag.toFixed(1)}%</span>`;
+    html+=`</div><div class="lr-sub">${Math.abs(yrs).toFixed(1)} years of compounding fees</div></div>`;
+  }
+  
+  html+=`</div>`;
+  html+=`<div class="lr-note">Power law formula: P = 1.0117e-17 × ${days}^5.82 · IBIT ratio ${IBIT_R.toFixed(0)}:1 · BTCC.B ratio ${BTCC_R.toFixed(0)}:1 · USD/CAD ${USDCAD}</div>`;
+  
+  res.innerHTML=html;
+  res.classList.add('show');
+}
+
+document.getElementById('lookupBtn').addEventListener('click',doLookup);
+document.getElementById('lookupDate').addEventListener('keydown',e=>{if(e.key==='Enter')doLookup();});
+doLookup(); // run on load with default date
+
+// === ROI Calculator ===
+function calcROI(){
+  const inp=document.getElementById('lookupDate').value;
+  if(!inp)return;
+  const d=new Date(inp+'T12:00:00');
+  const etf=document.getElementById('roiETF').value;
+  const strike=parseFloat(document.getElementById('roiStrike').value)||0;
+  const premium=parseFloat(document.getElementById('roiPremium').value)||0;
+  const contracts=parseInt(document.getElementById('roiContracts').value)||1;
+  const res=document.getElementById('roiResult');
+  
+  const fv=pl(d),flr=fl(d),cei=cl(d);
+  const yrs=((d-AD)/31557600000);
+  const costPerShare=premium;
+  const totalCost=premium*100*contracts;
+  
+  const isIBIT=etf==='ibit';
+  const currency=isIBIT?'$':'C$';
+  const etfName=isIBIT?'IBIT':'BTCC.B';
+  const etfColor=isIBIT?'var(--pr)':'var(--cy)';
+  
+  // ETF prices at each scenario
+  const pFloor=isIBIT?eIBIT(flr,d):eBTCC(flr,d);
+  const pFair=isIBIT?eIBIT(fv,d):eBTCC(fv,d);
+  const pCeil=isIBIT?eIBIT(cei,d):eBTCC(cei,d);
+  
+  function scenario(label,etfPrice,color){
+    const intrinsic=Math.max(0,etfPrice-strike);
+    const valuePerContract=intrinsic*100;
+    const totalValue=valuePerContract*contracts;
+    const pnl=totalValue-totalCost;
+    const roi=totalCost>0?((pnl/totalCost)*100):0;
+    const mult=totalCost>0?(totalValue/totalCost):0;
+    const expired=intrinsic<=0;
+    
+    let html=`<div class="roi-sc" style="border-color:${expired?'var(--rd)':color}">`;
+    html+=`<div class="roi-sc-label">${label}</div>`;
+    html+=`<div class="roi-sc-etf" style="color:${color}">${currency}${etfPrice.toFixed(2)}</div>`;
+    if(expired){
+      html+=`<div class="roi-sc-pct" style="color:var(--rd)">EXPIRED OTM</div>`;
+      html+=`<div class="roi-sc-pnl" style="color:var(--rd)">P&L: -${currency}${totalCost.toFixed(2)}</div>`;
+      html+=`<div class="roi-sc-mult">-100% (total loss)</div>`;
+    }else{
+      html+=`<div class="roi-sc-pct" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">${pnl>=0?'+':''}${roi.toFixed(0)}%</div>`;
+      html+=`<div class="roi-sc-mult">${mult.toFixed(1)}× return · intrinsic ${currency}${intrinsic.toFixed(2)}</div>`;
+      html+=`<div class="roi-sc-pnl" style="color:${pnl>=0?'var(--gr)':'var(--rd)'}">P&L: ${pnl>=0?'+':''}${currency}${pnl.toFixed(2)}</div>`;
+    }
+    html+=`</div>`;
+    return html;
+  }
+  
+  const dateStr=d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  const breakeven=strike+premium;
+  
+  let html=`<div style="font-size:.8rem;margin-bottom:.8rem;color:var(--tx)">`;
+  html+=`<strong>${etfName} Call Option</strong> <span style="color:var(--dim)">· Strike ${currency}${strike.toFixed(2)} · Premium ${currency}${premium.toFixed(2)} · ${contracts} contract${contracts>1?'s':''} · Expiry target: ${dateStr}</span>`;
+  html+=`</div>`;
+  html+=`<div style="font-size:.72rem;color:var(--dim);margin-bottom:.8rem;font-family:'JetBrains Mono',monospace">`;
+  html+=`Cost basis: ${currency}${totalCost.toFixed(2)} · Breakeven: ${currency}${breakeven.toFixed(2)} per share`;
+  html+=`</div>`;
+  
+  html+=`<div class="roi-scenarios">`;
+  html+=scenario('@ Floor',pFloor,'var(--bl)');
+  html+=scenario('@ Fair Value',pFair,'var(--gr)');
+  html+=scenario('@ Ceiling',pCeil,'var(--rd)');
+  html+=`</div>`;
+  
+  // Comparison vs just holding shares
+  const currentPrice=isIBIT?38:13;
+  const sharesWithCost=Math.floor(totalCost/currentPrice);
+  const sharesPnLFair=(pFair-currentPrice)*sharesWithCost;
+  const sharesROIFair=((pFair-currentPrice)/currentPrice)*100;
+  
+  html+=`<div class="roi-detail">`;
+  html+=`<strong>Comparison — same ${currency}${totalCost.toFixed(2)} in ${etfName} shares today (${currency}${currentPrice}):</strong> `;
+  html+=`${sharesWithCost} shares → @ Fair Value: ${currency}${(pFair*sharesWithCost).toFixed(2)} `;
+  html+=`(P&L: ${sharesPnLFair>=0?'+':''}${currency}${sharesPnLFair.toFixed(2)}, ${sharesROIFair>=0?'+':''}${sharesROIFair.toFixed(0)}%) · `;
+  html+=`Options leverage: ${totalCost>0&&sharesROIFair!==0?((((Math.max(0,pFair-strike)*100*contracts-totalCost)/totalCost*100)/sharesROIFair)).toFixed(1):'∞'}× vs shares`;
+  html+=`</div>`;
+  
+  res.innerHTML=html;
+  res.classList.add('show');
+}
+
+document.getElementById('roiCalcBtn').addEventListener('click',calcROI);
+// Auto-update ROI when lookup date changes
+const origLookup=doLookup;
+document.getElementById('lookupBtn').addEventListener('click',()=>{if(document.getElementById('roiResult').classList.contains('show'))calcROI();});
+
+// Update defaults based on ETF selection
+document.getElementById('roiETF').addEventListener('change',function(){
+  const isIBIT=this.value==='ibit';
+  document.getElementById('roiStrike').value=isIBIT?50:20;
+  document.getElementById('roiPremium').value=isIBIT?'5.00':'2.00';
+});
+</script>
+
+</body>
+</html>
