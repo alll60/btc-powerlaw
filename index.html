@@ -149,13 +149,23 @@
 <script>
 const GEN=new Date('2009-01-03'),A=1.0117e-17,B=5.82,FM=0.42,UM=5.5;
 
-// IBIT: $38 USD, fee 0.25%/yr
-const IBIT_R=67700/38,IBIT_F=0.0025,IBIT_L=new Date('2024-01-11'),AD=new Date('2026-02-20');
-// BTCC.B: C$13, fee 1.45%/yr, USD/CAD 1.368
-const USDCAD=1.368,BTCC_R=(67700*USDCAD)/13,BTCC_F=0.0145,BTCC_L=new Date('2021-02-18');
+// === Live price anchors (updated from API on load) ===
+// Defaults used until API responds
+let BTC_NOW=67700;           // BTC price USD
+let USDCAD=1.368;            // USD to CAD
+let IBIT_PRICE=38.0;         // IBIT price USD
+let BTCC_PRICE=13.0;         // BTCC.B price CAD
+let AD=new Date();           // Anchor date (today)
 
-function eIBIT(btc,d){return(btc/IBIT_R)*Math.pow(1-IBIT_F,(d-AD)/31557600000);}
-function eBTCC(btc,d){return(btc*USDCAD/BTCC_R)*Math.pow(1-BTCC_F,(d-AD)/31557600000);}
+const IBIT_F=0.0025,IBIT_L=new Date('2024-01-11');
+const BTCC_F=0.0145,BTCC_L=new Date('2021-02-18');
+
+// Ratios computed from current prices (recomputed after fetch)
+function IBIT_R(){return BTC_NOW/IBIT_PRICE;}
+function BTCC_R(){return(BTC_NOW*USDCAD)/BTCC_PRICE;}
+
+function eIBIT(btc,d){return(btc/IBIT_R())*Math.pow(1-IBIT_F,(d-AD)/31557600000);}
+function eBTCC(btc,d){return(btc*USDCAD/BTCC_R())*Math.pow(1-BTCC_F,(d-AD)/31557600000);}
 
 const HV=[new Date('2012-11-28'),new Date('2016-07-09'),new Date('2020-05-11'),new Date('2024-04-20'),new Date('2028-03-20'),new Date('2032-02-20'),new Date('2036-01-20'),new Date('2040-01-01'),new Date('2044-01-01'),new Date('2048-01-01')];
 
@@ -222,14 +232,14 @@ function dT(s,e){const t=[],y=(e-s)/(365.25*864e5);if(y>4)for(let i=s.getFullYea
 
 // Stats
 function rS(){
-  const fv=pl(AD),flr=fl(AD),cei=cl(AD),dev=((67700-fv)/fv*100);
+  const fv=pl(AD),flr=fl(AD),cei=cl(AD),dev=((BTC_NOW-fv)/fv*100);
   document.getElementById('stats').innerHTML=`
-  <div class="sc"><div class="lb">BTC Price</div><div class="vl" style="color:var(--or)">${f$(67700)}</div><div class="ch dn">ATH $126K · -46%</div></div>
-  <div class="sc"><div class="lb">IBIT (USD)</div><div class="vl" style="color:var(--pr)">$38.00</div><div class="ch dn">Fee: 0.25%/yr</div></div>
-  <div class="sc"><div class="lb">BTCC.B (CAD)</div><div class="vl" style="color:var(--cy)">C$13.00</div><div class="ch dn">Fee: 1.45%/yr</div></div>
+  <div class="sc"><div class="lb">BTC Price <span style="color:var(--gr);font-size:.55rem;margin-left:.3rem">● LIVE</span></div><div class="vl" style="color:var(--or)">${f$(BTC_NOW)}</div><div class="ch dn">ATH $126K</div></div>
+  <div class="sc"><div class="lb">IBIT (USD)</div><div class="vl" style="color:var(--pr)">$${IBIT_PRICE.toFixed(2)}</div><div class="ch dn">Fee: 0.25%/yr</div></div>
+  <div class="sc"><div class="lb">BTCC.B (CAD)</div><div class="vl" style="color:var(--cy)">C$${BTCC_PRICE.toFixed(2)}</div><div class="ch dn">Fee: 1.45%/yr</div></div>
   <div class="sc"><div class="lb">Fair Value</div><div class="vl" style="color:var(--gr)">${f$(fv)}</div><div class="ch ${dev>=0?'up':'dn'}">${dev>=0?'+':''}${dev.toFixed(1)}%</div></div>
-  <div class="sc"><div class="lb">Floor</div><div class="vl" style="color:var(--bl)">${f$(flr)}</div><div class="ch">${((67700-flr)/flr*100).toFixed(0)}% above</div></div>
-  <div class="sc"><div class="lb">Ceiling</div><div class="vl" style="color:var(--rd)">${f$(cei)}</div><div class="ch">${((cei-67700)/67700*100).toFixed(0)}% upside</div></div>`;
+  <div class="sc"><div class="lb">Floor</div><div class="vl" style="color:var(--bl)">${f$(flr)}</div><div class="ch">${((BTC_NOW-flr)/flr*100).toFixed(0)}% above</div></div>
+  <div class="sc"><div class="lb">Ceiling</div><div class="vl" style="color:var(--rd)">${f$(cei)}</div><div class="ch">${((cei-BTC_NOW)/BTC_NOW*100).toFixed(0)}% upside</div></div>`;
 }
 
 function rI(){
@@ -240,22 +250,22 @@ function rI(){
   });
   document.getElementById('ip').innerHTML=`
   <div class="ic"><h3>Projections: Floor / Fair / Ceiling / IBIT / BTCC.B (at Fair Value)</h3>${rows}
-  <div style="font-size:.6rem;color:var(--dim);margin-top:.6rem">IBIT: ratio ${IBIT_R.toFixed(0)}:1 · 0.25%/yr fee | BTCC.B: ratio ${BTCC_R.toFixed(0)}:1 · 1.45%/yr fee · USD/CAD ${USDCAD} assumed flat</div></div>
+  <div style="font-size:.6rem;color:var(--dim);margin-top:.6rem">IBIT: ratio ${IBIT_R().toFixed(0)}:1 · 0.25%/yr fee | BTCC.B: ratio ${BTCC_R().toFixed(0)}:1 · 1.45%/yr fee · USD/CAD ${USDCAD} assumed flat</div></div>
   <div class="ic"><h3>Model Parameters</h3>
   <div class="ir"><span class="k">Formula</span><span class="v">P = A × days^B</span></div>
   <div class="ir"><span class="k">A</span><span class="v">1.0117e-17</span></div>
   <div class="ir"><span class="k">B</span><span class="v">5.82</span></div>
   <div class="ir"><span class="k">Floor ×</span><span class="v">0.42</span></div>
   <div class="ir"><span class="k">Ceiling ×</span><span class="v">5.5</span></div>
-  <div class="ir"><span class="k">BTC/IBIT ratio</span><span class="v">${IBIT_R.toFixed(0)}:1</span></div>
-  <div class="ir"><span class="k">BTC(CAD)/BTCC.B ratio</span><span class="v">${BTCC_R.toFixed(0)}:1</span></div>
+  <div class="ir"><span class="k">BTC/IBIT ratio</span><span class="v">${IBIT_R().toFixed(0)}:1</span></div>
+  <div class="ir"><span class="k">BTC(CAD)/BTCC.B ratio</span><span class="v">${BTCC_R().toFixed(0)}:1</span></div>
   <div class="ir"><span class="k">IBIT fee</span><span class="v">0.25%/yr</span></div>
   <div class="ir"><span class="k">BTCC.B MER</span><span class="v">1.45%/yr</span></div>
   <div class="ir"><span class="k">USD/CAD</span><span class="v">${USDCAD}</span></div>
   <div class="ir"><span class="k">IBIT launch</span><span class="v">Jan 11, 2024</span></div>
   <div class="ir"><span class="k">BTCC.B launch</span><span class="v">Feb 18, 2021</span></div>
   <div class="ir"><span class="k">Next halving</span><span class="v">~Mar 2028</span></div>
-  <div style="font-size:.6rem;color:var(--dim);margin-top:.6rem">IBIT = BTC/${IBIT_R.toFixed(0)} × (1−0.0025)^yrs<br>BTCC.B = BTC×${USDCAD}/${BTCC_R.toFixed(0)} × (1−0.0145)^yrs<br>Estimates only — actual prices track NAV ± premium/discount</div></div>`;
+  <div style="font-size:.6rem;color:var(--dim);margin-top:.6rem">IBIT = BTC/${IBIT_R().toFixed(0)} × (1−0.0025)^yrs<br>BTCC.B = BTC×${USDCAD}/${BTCC_R().toFixed(0)} × (1−0.0145)^yrs<br>Estimates only — actual prices track NAV ± premium/discount</div></div>`;
 }
 
 // Controls
@@ -322,6 +332,117 @@ cv.addEventListener('mouseleave',()=>{te.style.display='none';});
 window.addEventListener('resize',draw);
 rS();rI();draw();
 
+// === Live price fetching ===
+// To get REAL IBIT/BTCC.B prices, get a free API key from https://finnhub.io
+// and paste it here. Leave blank to use Yahoo Finance via CORS proxy (less reliable).
+const FINNHUB_KEY = ''; // e.g. 'cq123abc...' (free, 60 calls/min)
+
+async function fetchFinnhubQuote(symbol){
+  if(!FINNHUB_KEY)return null;
+  try{
+    const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`);
+    if(!r.ok)return null;
+    const d=await r.json();
+    return d.c>0?d.c:null; // c = current price
+  }catch(e){return null;}
+}
+
+async function fetchYahooQuote(symbol){
+  // Yahoo blocks CORS, so we use a public CORS proxy
+  // allorigins is free and reliable
+  try{
+    const yahooUrl=`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+    const proxyUrl=`https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
+    const r=await fetch(proxyUrl);
+    if(!r.ok)return null;
+    const d=await r.json();
+    const price=d?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    return price>0?price:null;
+  }catch(e){
+    console.warn(`Yahoo fetch failed for ${symbol}:`,e);
+    return null;
+  }
+}
+
+async function fetchETFPrice(symbols){
+  // Try Finnhub first (if key provided), then Yahoo via proxy
+  for(const sym of symbols){
+    if(FINNHUB_KEY){
+      const p=await fetchFinnhubQuote(sym);
+      if(p)return{price:p,source:'finnhub'};
+    }
+    const p=await fetchYahooQuote(sym);
+    if(p)return{price:p,source:'yahoo'};
+  }
+  return null;
+}
+
+async function fetchLivePrices(){
+  let btcUsd=null,btcCad=null;
+  
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,cad');
+    if(r.ok){
+      const d=await r.json();
+      btcUsd=d.bitcoin.usd;
+      btcCad=d.bitcoin.cad;
+    }
+  }catch(e){console.warn('CoinGecko failed:',e);}
+  
+  // Fetch IBIT (try IBIT on various exchanges) and BTCC.B (Toronto)
+  const [ibitResult,btccResult]=await Promise.all([
+    fetchETFPrice(['IBIT']),
+    fetchETFPrice(['BTCC-B.TO','BTCC.B.TO'])
+  ]);
+  
+  if(!btcUsd){
+    const ts=document.getElementById('priceTimestamp');
+    if(ts)ts.innerHTML=`⚠ Using cached prices (API unavailable)`;
+    return;
+  }
+  
+  // Update globals
+  BTC_NOW=btcUsd;
+  USDCAD=btcCad/btcUsd;
+  AD=new Date();
+  
+  // Use live ETF prices if available, otherwise derive from BTC
+  const launchRatio_IBIT=1782;
+  const launchRatio_BTCC=5230;
+  
+  const ibitSource=ibitResult?ibitResult.source:'derived';
+  const btccSource=btccResult?btccResult.source:'derived';
+  IBIT_PRICE=ibitResult?ibitResult.price:(btcUsd/launchRatio_IBIT);
+  BTCC_PRICE=btccResult?btccResult.price:(btcCad/launchRatio_BTCC);
+  
+  // Append today's BTC price to history
+  const today=new Date().toISOString().split('T')[0];
+  while(BH.length>0&&new Date(BH[BH.length-1][0])>=new Date(today)){BH.pop();}
+  BH.push([today,btcUsd]);
+  
+  rS();rI();draw();
+  
+  const ts=document.getElementById('priceTimestamp');
+  if(ts){
+    const tm=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    ts.innerHTML=`● Live · ${tm} · BTC: CoinGecko · IBIT: ${ibitSource} · BTCC.B: ${btccSource}`;
+  }
+}
+
+// Add timestamp indicator under the header subtitle
+const hdr=document.querySelector('.hdr .sub');
+if(hdr){
+  const t=document.createElement('div');
+  t.id='priceTimestamp';
+  t.style.cssText='font-size:.7rem;color:var(--gr);font-family:JetBrains Mono,monospace;margin-top:.3rem';
+  t.innerHTML='⏳ Fetching live prices...';
+  hdr.appendChild(t);
+}
+
+fetchLivePrices();
+// Refresh every 5 minutes while the page is open
+setInterval(fetchLivePrices,5*60*1000);
+
 // Date Lookup
 function doLookup(){
   const inp=document.getElementById('lookupDate').value;
@@ -368,7 +489,7 @@ function doLookup(){
   }
   
   html+=`</div>`;
-  html+=`<div class="lr-note">Power law formula: P = 1.0117e-17 × ${days}^5.82 · IBIT ratio ${IBIT_R.toFixed(0)}:1 · BTCC.B ratio ${BTCC_R.toFixed(0)}:1 · USD/CAD ${USDCAD}</div>`;
+  html+=`<div class="lr-note">Power law formula: P = 1.0117e-17 × ${days}^5.82 · IBIT ratio ${IBIT_R().toFixed(0)}:1 · BTCC.B ratio ${BTCC_R().toFixed(0)}:1 · USD/CAD ${USDCAD}</div>`;
   
   res.innerHTML=html;
   res.classList.add('show');
@@ -446,7 +567,7 @@ function calcROI(){
   html+=`</div>`;
   
   // Comparison vs just holding shares
-  const currentPrice=isIBIT?38:13;
+  const currentPrice=isIBIT?IBIT_PRICE:BTCC_PRICE;
   const sharesWithCost=Math.floor(totalCost/currentPrice);
   const sharesPnLFair=(pFair-currentPrice)*sharesWithCost;
   const sharesROIFair=((pFair-currentPrice)/currentPrice)*100;
